@@ -1,0 +1,117 @@
+namespace ZeroLGR;
+
+// ── Primitive enums ────────────────────────────────────────────────────────
+// Debit/Credit is a field value, NOT a structural variant — use enum, not union
+enum EntryType : byte { Debit = 0, Credit = 1 }
+
+enum AccountType : byte {
+  Asset     = 0,
+  Liability = 1,
+  Equity    = 2,
+  Revenue   = 3,
+  Expense   = 4
+}
+
+enum TxStatus : byte {
+  OK                     = 0,
+  ERR_INSUFFICIENT_FUNDS = 1,
+  ERR_ACCOUNT_NOT_FOUND  = 2,
+  ERR_INVARIANT_VIOLATED = 3,
+  ERR_INTERNAL           = 4
+}
+
+// ── Transaction type variants (union for structural differences only) ──────
+table DepositDetails    { source_ref: string; }
+table WithdrawalDetails { destination_ref: string; }
+table TransferDetails   { from_account_id: string; to_account_id: string; }
+table AdjustmentDetails { reason: string; authorizer_id: string; }
+
+union TransactionPayload {
+  DepositDetails,
+  WithdrawalDetails,
+  TransferDetails,
+  AdjustmentDetails
+}
+
+// ── Core WAL record ────────────────────────────────────────────────────────
+table LedgerEntry {
+  entry_id:        [ubyte];       // 16-byte UUID as fixed array
+  transaction_id:  [ubyte];       // Groups the two legs (Debit + Credit)
+
+  account_id:      string;
+  account_type:    AccountType;
+  entry_type:      EntryType;     // Debit or Credit
+
+  amount_minor:    int64;         // Minor units (cents). e.g., 10050 = $100.50
+  currency:        string;        // ISO 4217: "USD", "INR"
+
+  created_at_ns:   int64;         // Unix epoch nanoseconds
+  idempotency_key: string;
+
+  payload:         TransactionPayload;
+  crc32:           uint32;        // Integrity check for WAL crash recovery
+}
+
+// ── Engine request (sent from Python gateway to C++ engine via ZeroMQ) ────
+table TransactionRequest {
+  correlation_id:  [ubyte];       // 16-byte UUID to match request/response
+  idempotency_key: string;
+  description:     string;
+
+  debit_account_id:  string;
+  credit_account_id: string;
+  amount_minor:      int64;       // Always positive
+  currency:          string;
+
+  stripe_charge_id:  string;      // Optional: linked Stripe charge ID
+}
+
+// ── Engine response ────────────────────────────────────────────────────────
+table TransactionResponse {
+  correlation_id: [ubyte];        // Echoed back to match request
+  transaction_id: [ubyte];        // Assigned by engine on success
+  status:         TxStatus;
+  message:        string;         // Human-readable error if failed
+  latency_us:     int64;          // Engine processing latency in microseconds
+}
+
+// ── Account management ────────────────────────────────────────────────────
+table CreateAccountRequest {
+  correlation_id: [ubyte];
+  name:           string;
+  account_type:   AccountType;
+}
+
+table CreateAccountResponse {
+  correlation_id: [ubyte];
+  account_id:     string;
+  status:         TxStatus;
+  message:        string;
+}
+
+// ── Balance snapshot (for dashboard) ──────────────────────────────────────
+table AccountBalance {
+  account_id:   string;
+  name:         string;
+  balance:      int64;
+  account_type: AccountType;
+}
+
+table BalanceSnapshot {
+  timestamp_us:      int64;
+  accounts:          [AccountBalance];
+  total_assets:      int64;
+  total_liabilities: int64;
+  total_equity:      int64;
+  invariant_ok:      bool;
+}
+
+// ── Metrics (polled by gateway for dashboard streaming) ──────────────────
+table MetricsSnapshot {
+  tps:             double;
+  avg_latency_us:  double;
+  tx_count:        uint64;
+  invariant_ok:    bool;
+}
+
+root_type LedgerEntry;
