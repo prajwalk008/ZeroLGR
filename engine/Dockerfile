@@ -4,7 +4,9 @@ FROM ubuntu:22.04 AS builder
 RUN apt-get update && apt-get install -y \
     build-essential \
     cmake \
+    pkg-config \
     libzmq3-dev \
+    libcppzmq-dev \
     libflatbuffers-dev \
     flatbuffers-compiler \
     && rm -rf /var/lib/apt/lists/*
