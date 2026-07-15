@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useMetricsStore } from '../../store/metricsStore';
 import { GitCommit, CreditCard, ShieldAlert } from 'lucide-react';
 
@@ -15,7 +15,7 @@ export const SagaTimeline = () => {
       // We will trigger a fake webhook directly to the gateway's internal orchestrator
       // or we can use our /transactions/transfer endpoint to simulate the internal saga part.
       
-      const res = await fetch('http://localhost:8000/transactions/transfer', {
+      await fetch('http://localhost:8000/transactions/transfer', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

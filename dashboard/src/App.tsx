@@ -1,4 +1,4 @@
-import React from 'react';
+
 import { useWebSocket } from './hooks/useWebSocket';
 import { BenchmarkPanel } from './components/benchmark/BenchmarkPanel';
 import { SagaTimeline } from './components/saga/SagaTimeline';

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useLedgerStore } from '../../store/ledgerStore';
 import { Users, Plus, Send } from 'lucide-react';
 

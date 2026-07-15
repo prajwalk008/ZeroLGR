@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useMetricsStore } from '../../store/metricsStore';
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
+import { ResponsiveContainer, AreaChart, Area } from 'recharts';
 import { Play, Activity, Zap } from 'lucide-react';
 
 export const BenchmarkPanel = () => {

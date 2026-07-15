@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import { useEffect } from 'react';
 import { useLedgerStore } from '../../store/ledgerStore';
 import { Database, ShieldCheck, ShieldX } from 'lucide-react';
 
