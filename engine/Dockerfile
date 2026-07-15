@@ -6,10 +6,14 @@ RUN apt-get update && apt-get install -y \
     cmake \
     pkg-config \
     libzmq3-dev \
-    libcppzmq-dev \
     libflatbuffers-dev \
     flatbuffers-compiler \
+    wget \
     && rm -rf /var/lib/apt/lists/*
+
+# Manually download cppzmq headers since Ubuntu 22.04 lacks a dedicated package for them
+RUN wget https://raw.githubusercontent.com/zeromq/cppzmq/master/zmq.hpp -O /usr/local/include/zmq.hpp && \
+    wget https://raw.githubusercontent.com/zeromq/cppzmq/master/zmq_addon.hpp -O /usr/local/include/zmq_addon.hpp
 
 WORKDIR /src
 COPY . .
