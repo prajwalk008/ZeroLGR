@@ -153,11 +153,12 @@ std::vector<uint8_t> EngineServer::serialize_create_account_response(const Creat
 
 // ── Serialize MetricsSample ───────────────────────────────────────────────
 
-std::vector<uint8_t> EngineServer::serialize_metrics(const MetricsSample& sample) {
+std::vector<uint8_t> EngineServer::serialize_metrics(const UUID& corr_id, const MetricsSample& sample) {
     std::vector<uint8_t> buf;
-    buf.reserve(32);
+    buf.reserve(48);
 
     buf.push_back(MSG_METRICS_RESPONSE);
+    write_bytes(buf, corr_id.data(), UUID_SIZE);
     write_bytes(buf, &sample.tps, sizeof(sample.tps));
     write_bytes(buf, &sample.avg_latency_us, sizeof(sample.avg_latency_us));
     write_bytes(buf, &sample.tx_count, sizeof(sample.tx_count));
@@ -171,12 +172,14 @@ std::vector<uint8_t> EngineServer::serialize_metrics(const MetricsSample& sample
 // ── Serialize BalanceSnapshot ─────────────────────────────────────────────
 
 std::vector<uint8_t> EngineServer::serialize_balance_snapshot(
+    const UUID& corr_id,
     const LedgerEngine::BalanceSnapshotData& snap)
 {
     std::vector<uint8_t> buf;
     buf.reserve(512);
 
     buf.push_back(MSG_BALANCE_RESPONSE);
+    write_bytes(buf, corr_id.data(), UUID_SIZE);
 
     uint8_t inv = snap.invariant_ok ? 1 : 0;
     buf.push_back(inv);
@@ -346,8 +349,10 @@ void EngineServer::io_loop() {
                 }
 
                 case MSG_METRICS_REQUEST: {
+                    UUID corr_id;
+                    std::memcpy(corr_id.data(), data + 1, UUID_SIZE);
                     auto sample = engine_.get_metrics_sample();
-                    auto resp_bytes = serialize_metrics(sample);
+                    auto resp_bytes = serialize_metrics(corr_id, sample);
 
                     router.send(identity_msg, zmq::send_flags::sndmore);
                     router.send(zmq::message_t(), zmq::send_flags::sndmore);
@@ -358,8 +363,10 @@ void EngineServer::io_loop() {
                 }
 
                 case MSG_BALANCE_REQUEST: {
+                    UUID corr_id;
+                    std::memcpy(corr_id.data(), data + 1, UUID_SIZE);
                     auto snap = engine_.get_balance_snapshot();
-                    auto resp_bytes = serialize_balance_snapshot(snap);
+                    auto resp_bytes = serialize_balance_snapshot(corr_id, snap);
 
                     router.send(identity_msg, zmq::send_flags::sndmore);
                     router.send(zmq::message_t(), zmq::send_flags::sndmore);

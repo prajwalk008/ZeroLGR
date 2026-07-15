@@ -1,0 +1,34 @@
+version: '3.8'
+
+services:
+  engine:
+    build:
+      context: ./engine
+    volumes:
+      - zmq_sockets:/var/run/zerolgr
+    # The C++ engine binds its ROUTER socket to IPC path /var/run/zerolgr/engine.ipc
+
+  gateway:
+    build:
+      context: ./gateway
+    ports:
+      - "8000:8000"
+    environment:
+      - ZMQ_ENDPOINT=ipc:///var/run/zerolgr/engine.ipc
+      - STRIPE_API_KEY=${STRIPE_API_KEY:-sk_test_dummy}
+      - STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET:-whsec_dummy}
+    volumes:
+      - zmq_sockets:/var/run/zerolgr
+    depends_on:
+      - engine
+
+  dashboard:
+    build:
+      context: ./dashboard
+    ports:
+      - "80:80"
+    depends_on:
+      - gateway
+
+volumes:
+  zmq_sockets:

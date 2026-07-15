@@ -63,8 +63,8 @@ private:
 
     static CreateAccountRequest deserialize_create_account(const uint8_t* data, std::size_t size);
     static std::vector<uint8_t> serialize_create_account_response(const CreateAccountResponse& resp);
-    static std::vector<uint8_t> serialize_metrics(const MetricsSample& sample);
-    static std::vector<uint8_t> serialize_balance_snapshot(const LedgerEngine::BalanceSnapshotData& snap);
+    static std::vector<uint8_t> serialize_metrics(const UUID& corr_id, const MetricsSample& sample);
+    static std::vector<uint8_t> serialize_balance_snapshot(const UUID& corr_id, const LedgerEngine::BalanceSnapshotData& snap);
 
     // ── State ─────────────────────────────────────────────────────────────
 

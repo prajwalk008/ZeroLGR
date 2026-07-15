@@ -75,17 +75,81 @@ async def start_benchmark(req: BenchmarkStartModel, request: Request):
         # Launch background task
         asyncio.create_task(run_optimized_benchmark(benchmark_id, req.tx_count, request.app.state.zmq))
     else:
-        # Simulate baseline (Python/SQLite) which would typically be ~200-500 TPS
+        # Simulate baseline (Python/SQLite)
         async def run_baseline():
             benchmarks[benchmark_id]["status"] = "running"
-            # Fake baseline run time
-            await asyncio.sleep(2.0)
+            
+            import sqlite3
+            import os
+            
+            # Use a fresh file-based sqlite db for realism (in-memory is too fast to be a fair disk-based comparison, 
+            # but memory mapping in C++ goes to disk. Let's use a temp file to simulate a traditional DB).
+            db_path = f"baseline_{benchmark_id}.db"
+            conn = sqlite3.connect(db_path, isolation_level=None) # Auto-commit mode or we can manage transactions
+            cursor = conn.cursor()
+            
+            # Setup schema
+            cursor.execute("CREATE TABLE accounts (id TEXT PRIMARY KEY, balance INTEGER)")
+            cursor.execute("CREATE TABLE ledger (tx_id TEXT PRIMARY KEY, from_id TEXT, to_id TEXT, amount INTEGER)")
+            cursor.execute("INSERT INTO accounts (id, balance) VALUES ('acc_benchmark_source', 1000000000)")
+            cursor.execute("INSERT INTO accounts (id, balance) VALUES ('acc_benchmark_dest', 0)")
+            
+            conn.execute("PRAGMA synchronous = FULL") # To match WAL durability guarantees
+            
+            start_time = time.time()
+            latencies = []
+            
+            # Sequential processing (standard Python web app loop bottleneck)
+            for i in range(req.tx_count):
+                tx_start = time.time()
+                
+                try:
+                    conn.execute("BEGIN EXCLUSIVE TRANSACTION")
+                    
+                    # Read balances
+                    cursor.execute("SELECT balance FROM accounts WHERE id = 'acc_benchmark_source'")
+                    src_bal = cursor.fetchone()[0]
+                    cursor.execute("SELECT balance FROM accounts WHERE id = 'acc_benchmark_dest'")
+                    dst_bal = cursor.fetchone()[0]
+                    
+                    if src_bal >= 1:
+                        # Write ledger entry
+                        tx_id = str(uuid.uuid4())
+                        cursor.execute("INSERT INTO ledger (tx_id, from_id, to_id, amount) VALUES (?, ?, ?, ?)", 
+                                       (tx_id, 'acc_benchmark_source', 'acc_benchmark_dest', 1))
+                        # Update accounts
+                        cursor.execute("UPDATE accounts SET balance = balance - 1 WHERE id = 'acc_benchmark_source'")
+                        cursor.execute("UPDATE accounts SET balance = balance + 1 WHERE id = 'acc_benchmark_dest'")
+                    
+                    conn.execute("COMMIT")
+                except Exception as e:
+                    conn.execute("ROLLBACK")
+                
+                tx_end = time.time()
+                latencies.append((tx_end - tx_start) * 1_000_000) # µs
+                
+                # Yield to event loop occasionally so we don't completely block the gateway
+                if i % 100 == 0:
+                    await asyncio.sleep(0)
+            
+            end_time = time.time()
+            conn.close()
+            
+            # Cleanup temp DB
+            if os.path.exists(db_path):
+                os.remove(db_path)
+            
+            duration = end_time - start_time
+            tps = req.tx_count / duration if duration > 0 else 0
+            avg_latency = sum(latencies) / len(latencies) if latencies else 0
+            
             benchmarks[benchmark_id].update({
                 "status": "completed",
-                "tps": 350.0,
-                "avg_latency_us": 2500.0,
-                "p99_latency_us": 8000.0
+                "tps": tps,
+                "avg_latency_us": avg_latency,
+                "p99_latency_us": sorted(latencies)[int(len(latencies)*0.99)] if latencies else 0
             })
+            
         asyncio.create_task(run_baseline())
 
     return {"benchmark_id": benchmark_id}

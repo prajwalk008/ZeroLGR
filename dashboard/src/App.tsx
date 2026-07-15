@@ -3,6 +3,7 @@ import { useWebSocket } from './hooks/useWebSocket';
 import { BenchmarkPanel } from './components/benchmark/BenchmarkPanel';
 import { SagaTimeline } from './components/saga/SagaTimeline';
 import { LedgerAuditor } from './components/ledger/LedgerAuditor';
+import { AccountManager } from './components/accounts/AccountManager';
 import { Activity } from 'lucide-react';
 
 function App() {
@@ -21,6 +22,7 @@ function App() {
       <main className="main-content">
         <BenchmarkPanel />
         <SagaTimeline />
+        <AccountManager />
         <LedgerAuditor />
       </main>
     </div>
