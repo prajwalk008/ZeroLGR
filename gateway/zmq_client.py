@@ -199,7 +199,7 @@ class ZMQClient:
         future = asyncio.Future()
         self.pending_requests[corr_id] = future
         
-        await self.socket.send(msg)
+        await self.socket.send_multipart([b'', msg])
         
         try:
             return await asyncio.wait_for(future, timeout=5.0)
@@ -210,7 +210,8 @@ class ZMQClient:
     async def _receiver_loop(self):
         try:
             while True:
-                msg = await self.socket.recv()
+                parts = await self.socket.recv_multipart()
+                msg = parts[-1]
                 
                 # Minimum size is 1 byte type + 16 bytes corr_id
                 if len(msg) < 17:
