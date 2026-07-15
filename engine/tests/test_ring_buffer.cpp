@@ -118,7 +118,7 @@ static void test_concurrent() {
 static void test_capacity() {
     SPSCRingBuffer<int, 8> rb;  // capacity = 7
 
-    assert(SPSCRingBuffer<int, 8>::capacity() == 7);
+    assert((SPSCRingBuffer<int, 8>::capacity() == 7));
 
     for (int i = 0; i < 7; ++i) {
         assert(rb.push(i));
