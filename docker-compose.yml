@@ -4,6 +4,7 @@ services:
   engine:
     build:
       context: ./engine
+    command: ["/app/zerolgr_engine", "--endpoint", "ipc:///var/run/zerolgr/engine.ipc"]
     volumes:
       - zmq_sockets:/var/run/zerolgr
     # The C++ engine binds its ROUTER socket to IPC path /var/run/zerolgr/engine.ipc
